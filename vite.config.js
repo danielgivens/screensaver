@@ -16,6 +16,7 @@ export default defineConfig({
         treatment01: 'treatments/01-collage/index.html',
         treatment02: 'treatments/02-paintbrush/index.html',
         treatment03: 'treatments/03-speedread/index.html',
+        treatment04: 'treatments/04-sphere/index.html',
       },
       output: {
         manualChunks: {
