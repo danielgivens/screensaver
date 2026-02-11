@@ -173,15 +173,15 @@ function onAnimLoop() {
   if (next > TWIST_MAX || next < -TWIST_MAX) twistSign *= -1
   postFXMat.uniforms.twist.value = next
 
-  // Run multiple feedback+stamp passes per frame for finer echo spacing
+  // Run multiple feedback passes per frame for finer echo spacing
   for (let i = 0; i < PASSES_PER_FRAME; i++) {
     // 1. Feedback pass into bufferA (scaled previous frame from bufferB)
     renderer.setRenderTarget(renderBufferA)
     postFXMat.uniforms.sampler.value = renderBufferB.texture
     renderer.render(postFXScene, orthoCamera)
 
-    // 2. Stamp current image on top
-    renderer.render(imageScene, orthoCamera)
+    // 2. Stamp current image on top (first pass only — keeps it at full brightness)
+    if (i === 0) renderer.render(imageScene, orthoCamera)
 
     // Ping-pong
     const temp = renderBufferA
@@ -193,4 +193,7 @@ function onAnimLoop() {
   renderer.setRenderTarget(null)
   postFXMat.uniforms.sampler.value = renderBufferB.texture
   renderer.render(postFXScene, orthoCamera)
+
+  // 4. Composite the live image on top at full brightness
+  renderer.render(imageScene, orthoCamera)
 }
