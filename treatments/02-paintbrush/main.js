@@ -19,9 +19,9 @@ window.addEventListener('resize', resize)
 // Image display size — longest edge as fraction of shortest screen dimension
 const SIZE          = () => Math.min(window.innerWidth, window.innerHeight) * 0.28
 // How often to swap to the next image (ms)
-const SWAP_INTERVAL = 800
+const SWAP_INTERVAL = 2800
 // Speed in px/frame
-const SPEED         = 1.8
+const SPEED         = 0.8
 
 // ─── Image pool ──────────────────────────────────────────────────────────────
 
@@ -54,6 +54,11 @@ function nextImage() {
 
 let currentImg = nextImage()
 let pendingImg = null   // preloaded next image
+
+// Re-compute size once the first image finishes loading
+if (!currentImg.complete) {
+  currentImg.addEventListener('load', updateSize, { once: true })
+}
 
 // Position & velocity
 let x  = Math.random() * window.innerWidth
@@ -89,11 +94,17 @@ function preloadNext() {
 
 preloadNext()
 
+// Fade state — ramps from 0 to 1 after each swap
+let opacity     = 1
+const FADE_STEP  = 0.018  // per frame, ~700ms dissolve on swap
+const TRAIL_FADE = 0.002  // opacity of black rect painted each frame — controls trail length
+
 // Swap to next image every SWAP_INTERVAL ms
 setInterval(() => {
   if (pendingImg) {
     currentImg = pendingImg
     updateSize()
+    opacity = 0   // trigger fade in
   }
   preloadNext()
 }, SWAP_INTERVAL)
@@ -130,9 +141,18 @@ function tick() {
     vy = -Math.abs(vy)
   }
 
-  // Draw — no clear, just stamp the image at current position
+  // Slowly darken the whole canvas each frame — older stamps fade to black
+  ctx.globalAlpha = TRAIL_FADE
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.globalAlpha = 1
+
+  // Draw current image with fade-in on swap
   if (currentImg.complete && currentImg.naturalWidth > 0) {
+    opacity = Math.min(1, opacity + FADE_STEP)
+    ctx.globalAlpha = opacity
     ctx.drawImage(currentImg, x - hw, y - hh, pw, ph)
+    ctx.globalAlpha = 1
   }
 }
 
