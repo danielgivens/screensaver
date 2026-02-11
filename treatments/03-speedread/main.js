@@ -5,7 +5,8 @@ import { getImageUrls, shuffle } from '../../src/images.js'
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const SCALE_DURATION = 0.5    // seconds for scale-in animation
-const SPAWN_INTERVAL = 0.18   // seconds between each spawn (overlaps with scale-in)
+const SPAWN_INTERVAL = 0.13   // seconds between each spawn (overlaps with scale-in)
+const MAX_SPRITES    = 15     // hard cap — oldest removed immediately when exceeded
 const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     for (let i = sprites.length - 1; i >= 0; i--) {
       const s = sprites[i]
       const next = s.scale.x * 0.96
-      if (next < 0.02) {
+      if (next < 0.1) {
         gsap.killTweensOf(s)
         app.stage.removeChild(s)
         s.destroy()
@@ -94,6 +95,15 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
     app.stage.addChild(sprite)
     sprites.push(sprite)
+
+    // Hard cap — destroy oldest if over limit
+    while (sprites.length > MAX_SPRITES) {
+      const old = sprites.shift()
+      gsap.killTweensOf(old)
+      gsap.killTweensOf(old.scale)
+      app.stage.removeChild(old)
+      old.destroy()
+    }
 
     gsap.to(sprite.scale, { x: endScale, y: endScale, duration: SCALE_DURATION, ease: 'expo.out' })
 
