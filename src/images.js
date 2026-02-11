@@ -62,9 +62,10 @@ const imageFiles = [
   '000099660023.png','000099660025.png',
 ]
 
-// Returns absolute paths from the public root
+// Returns paths — works on both localhost and a subdirectory deploy
+const base = import.meta.env.BASE_URL
 export function getImageUrls() {
-  return imageFiles.map(f => `/png/${f}`)
+  return imageFiles.map(f => `${base}png/${f}`)
 }
 
 // Fisher-Yates shuffle — returns a new shuffled array
