@@ -177,4 +177,5 @@ function tick() {
 buildScene().then(() => {
   applyCameraRotation()
   tick()
+  document.getElementById('loader').remove()
 })
