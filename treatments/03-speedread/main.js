@@ -137,10 +137,6 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     gsap.delayedCall(SPAWN_INTERVAL, spawnNext)
   }
 
-  // Stage zoom
-  app.stage.pivot.set(app.screen.width / 2, app.screen.height / 2)
-  app.stage.position.set(app.screen.width / 2, app.screen.height / 2)
-  gsap.to(app.stage.scale, { x: 0.6, y: 0.6, duration: 120, ease: 'none' })
 
   spawnNext()
 
