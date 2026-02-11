@@ -4,9 +4,10 @@ import { getImageUrls, shuffle } from '../../src/images.js'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const SCALE_DURATION = 0.5    // seconds for scale-in animation
-const SPAWN_INTERVAL = 0.13   // seconds between each spawn (overlaps with scale-in)
-const MAX_SPRITES    = 15     // hard cap — oldest removed immediately when exceeded
+const SCALE_DURATION  = 0.5    // seconds for scale-in animation
+const SPAWN_INTERVAL  = 0.13   // seconds between each spawn
+const MAX_SPRITES     = 15     // hard cap on live sprites
+const PRELOAD_AHEAD   = 3      // how many urls to preload in advance
 const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
   await app.init({
     resizeTo: window,
     background: '#000000',
-    antialias: true,
+    antialias: false,   // off = cheaper on mobile
   })
 
   app.canvas.style.position = 'fixed'
@@ -30,13 +31,9 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
   const allUrls = getImageUrls()
 
-  // Load first 20 immediately, rest in background
-  await Assets.load(allUrls.slice(0, 20))
-  allUrls.slice(20).forEach(url => Assets.load(url))
-
   let urls    = shuffle(allUrls)
   let index   = 0
-  const RECENT_SIZE = 40
+  const RECENT_SIZE = 20
   const recent      = []
 
   function nextUrl() {
@@ -49,14 +46,47 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     return url
   }
 
+  // Preload a small window of upcoming urls
+  const queue = []
+  function refillQueue() {
+    while (queue.length < PRELOAD_AHEAD) {
+      const url = nextUrl()
+      queue.push(url)
+      Assets.load(url)  // starts fetch, result cached by Pixi
+    }
+  }
+
+  // Track which urls are currently in use so we know when to unload
+  const inUse = new Map()  // url -> sprite count
+
+  function acquire(url) {
+    inUse.set(url, (inUse.get(url) ?? 0) + 1)
+  }
+
+  function release(url) {
+    const n = (inUse.get(url) ?? 1) - 1
+    if (n <= 0) {
+      inUse.delete(url)
+      Assets.unload(url)  // free GPU texture when no longer displayed
+    } else {
+      inUse.set(url, n)
+    }
+  }
+
   // ─── Spawn loop ──────────────────────────────────────────────────────────
 
   const sprites = []
+  refillQueue()
 
   async function spawnNext() {
-    const url     = nextUrl()
+    refillQueue()
+
+    const url     = queue.shift()
     const texture = await Assets.load(url)
+    acquire(url)
+
     const sprite  = new Sprite(texture)
+    sprite._srcUrl = url   // store so we can release it later
 
     // Fit longest edge to SIZE()
     const longest = SIZE()
@@ -75,18 +105,19 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     sprite.rotation = 0
     sprite.alpha    = 1
 
-    // Start from 0, animate to full size
     const endScale = sprite.scale.x
     sprite.scale.set(0)
 
-    // Nudge all existing sprites back, remove ones that have shrunk to nothing
+    // Nudge existing sprites back, cull tiny ones
     for (let i = sprites.length - 1; i >= 0; i--) {
-      const s = sprites[i]
+      const s    = sprites[i]
       const next = s.scale.x * 0.96
-      if (next < 0.1) {
+      if (next < 0.33) {
+        gsap.killTweensOf(s.scale)
         gsap.killTweensOf(s)
         app.stage.removeChild(s)
-        s.destroy()
+        release(s._srcUrl)
+        s.destroy({ texture: false })
         sprites.splice(i, 1)
       } else {
         gsap.to(s.scale, { x: next, y: next, duration: SPAWN_INTERVAL, ease: 'sine.inOut', overwrite: true })
@@ -96,28 +127,24 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     app.stage.addChild(sprite)
     sprites.push(sprite)
 
-    // Hard cap — destroy oldest if over limit
+    // Hard cap — destroy oldest
     while (sprites.length > MAX_SPRITES) {
       const old = sprites.shift()
-      gsap.killTweensOf(old)
       gsap.killTweensOf(old.scale)
+      gsap.killTweensOf(old)
       app.stage.removeChild(old)
-      old.destroy()
+      release(old._srcUrl)
+      old.destroy({ texture: false })
     }
 
     gsap.to(sprite.scale, { x: endScale, y: endScale, duration: SCALE_DURATION, ease: 'expo.out' })
-
     gsap.delayedCall(SPAWN_INTERVAL, spawnNext)
   }
 
-  // Slowly zoom the entire stage out over time — one cheap tween, gives depth illusion
+  // Stage zoom
   app.stage.pivot.set(app.screen.width / 2, app.screen.height / 2)
   app.stage.position.set(app.screen.width / 2, app.screen.height / 2)
-  gsap.to(app.stage.scale, {
-    x: 0.6, y: 0.6,
-    duration: 120,
-    ease: 'none',
-  })
+  gsap.to(app.stage.scale, { x: 0.6, y: 0.6, duration: 120, ease: 'none' })
 
   spawnNext()
 
@@ -125,9 +152,11 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
   window.addEventListener('click', () => {
     sprites.forEach(s => {
+      gsap.killTweensOf(s.scale)
       gsap.killTweensOf(s)
       app.stage.removeChild(s)
-      s.destroy()
+      release(s._srcUrl)
+      s.destroy({ texture: false })
     })
     sprites.length = 0
     gsap.killTweensOf(app.stage.scale)
