@@ -107,8 +107,8 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     // Nudge existing sprites back, cull tiny ones
     for (let i = sprites.length - 1; i >= 0; i--) {
       const s    = sprites[i]
-      const next = s.scale.x * 0.96
-      if (next < 0.33) {
+      const next = s.scale.x * 0.97
+      if (next < 0.15) {
         gsap.killTweensOf(s.scale)
         gsap.killTweensOf(s)
         app.stage.removeChild(s)
