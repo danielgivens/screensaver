@@ -1,6 +1,6 @@
 import { Application, Sprite, Assets } from 'pixi.js'
 import { gsap } from 'gsap'
-import { getImageUrls, shuffle } from '../../src/images.js'
+import { getImageUrls } from '../../src/images.js'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -31,27 +31,15 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
   const allUrls = getImageUrls()
 
-  // Preload first 50 in order so initial spawns are always ready
+  // Preload first 50, then play through in fixed order forever
   const WARM_COUNT = 50
-  await Assets.load(allUrls.slice(0, WARM_COUNT))
-
-  // Use first 50 in order, then shuffle the rest
-  let urls  = [...allUrls.slice(0, WARM_COUNT), ...shuffle(allUrls.slice(WARM_COUNT))]
+  const urls = allUrls
+  await Assets.load(urls.slice(0, WARM_COUNT))
   let index = 0
-  const RECENT_SIZE = 20
-  const recent      = []
 
   function nextUrl() {
-    if (index >= urls.length) {
-      index = 0
-      urls  = shuffle(allUrls)
-    }
-    while (recent.includes(urls[index]) && index < urls.length) index++
-    if (index >= urls.length) { index = 0; urls = shuffle(allUrls) }
-    const url = urls[index++]
-    recent.push(url)
-    if (recent.length > RECENT_SIZE) recent.shift()
-    return url
+    if (index >= urls.length) index = 0
+    return urls[index++]
   }
 
   // Preload a small window of upcoming urls
@@ -156,20 +144,5 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
   spawnNext()
 
-  // ─── Click to clear ────────────────────────────────────────────────────────
-
-  window.addEventListener('click', () => {
-    sprites.forEach(s => {
-      gsap.killTweensOf(s.scale)
-      gsap.killTweensOf(s)
-      app.stage.removeChild(s)
-      release(s._srcUrl)
-      s.destroy({ texture: false })
-    })
-    sprites.length = 0
-    gsap.killTweensOf(app.stage.scale)
-    app.stage.scale.set(1)
-    gsap.to(app.stage.scale, { x: 0.6, y: 0.6, duration: 120, ease: 'none' })
-  })
 
 })()
