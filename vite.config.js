@@ -5,8 +5,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
-  // Serve the project root as the public dir so /png/* resolves directly
-  publicDir: '.',
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 600,
