@@ -6,7 +6,7 @@ import { getImageUrls, shuffle } from '../../src/images.js'
 const SWAP_INTERVAL    = 3500   // ms between image swaps
 const SCALE            = 0.992  // feedback zoom per pass — closer to 1 = slower zoom
 const TWIST_MAX        = 0.0008 // peak twist magnitude in radians per pass
-const PASSES_PER_FRAME = 8      // feedback+stamp passes per animation frame — more = finer echoes
+const PASSES_PER_FRAME = 14     // feedback+stamp passes per animation frame — more = finer echoes
 const TWIST_DRIFT      = 0.000004 // how fast the twist creeps per frame
 
 // ─── Renderer ────────────────────────────────────────────────────────────────
