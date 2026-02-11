@@ -3,11 +3,9 @@ import { getImageUrls, shuffle } from '../../src/images.js'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const SWAP_INTERVAL    = 3500   // ms between image swaps
-const SCALE            = 0.992  // feedback zoom per pass — closer to 1 = slower zoom
-const TWIST_MAX        = 0.0008 // peak twist magnitude in radians per pass
+const SWAP_INTERVAL    = 1000   // ms between image swaps
+const SCALE            = 0.994  // feedback zoom per pass — closer to 1 = slower zoom
 const PASSES_PER_FRAME = 14     // feedback+stamp passes per animation frame — more = finer echoes
-const TWIST_DRIFT      = 0.000004 // how fast the twist creeps per frame
 
 // ─── Renderer ────────────────────────────────────────────────────────────────
 
@@ -54,12 +52,6 @@ const imageMat   = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0
 const imageMesh  = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), imageMat)
 imageScene.add(imageMesh)
 
-// Twist drifts continuously — direction flips on each swap
-let twistSign = Math.random() < 0.5 ? 1 : -1
-
-function randomTwist() {
-  twistSign = Math.random() < 0.5 ? 1 : -1
-}
 
 
 // ─── Feedback (post-FX) scene ─────────────────────────────────────────────────
@@ -71,7 +63,6 @@ const postFXMat = new THREE.ShaderMaterial({
   uniforms: {
     sampler:  { value: null },
     scale:    { value: SCALE },
-    twist:    { value: TWIST_MAX * twistSign },
   },
   vertexShader: `
     varying vec2 v_uv;
@@ -83,21 +74,11 @@ const postFXMat = new THREE.ShaderMaterial({
   fragmentShader: `
     uniform sampler2D sampler;
     uniform float scale;
-    uniform float twist;
     varying vec2 v_uv;
 
-    vec2 cartesianToPolar(vec2 p) {
-      float angle = atan(p.y, p.x);
-      float radius = length(p);
-      return vec2(angle, radius);
-    }
-
     void main () {
-      vec2 polarUV = cartesianToPolar(v_uv - vec2(0.5, 0.5));
-      polarUV.y *= scale;
-      polarUV.x += twist;
-      vec2 scaledUV = vec2(cos(polarUV.x), sin(polarUV.x)) * polarUV.y + vec2(0.5, 0.5);
-      vec4 inputColor = texture2D(sampler, scaledUV);
+      vec2 uv = (v_uv - vec2(0.5)) * scale + vec2(0.5);
+      vec4 inputColor = texture2D(sampler, uv);
       gl_FragColor = vec4(inputColor.rgb * 0.999, 1.0);
     }
   `,
@@ -153,8 +134,6 @@ function swapToTexture(tex) {
   imageMesh.geometry = new THREE.PlaneGeometry(pw, ph)
   imageMat.needsUpdate = true
 
-  // Flip twist direction for this image
-  randomTwist()
 }
 
 function swapImage() {
@@ -168,11 +147,6 @@ function swapImage() {
 // ─── Render loop ─────────────────────────────────────────────────────────────
 
 function onAnimLoop() {
-  // Slowly drift the twist each frame, reversing at the limits
-  const next = postFXMat.uniforms.twist.value + TWIST_DRIFT * twistSign
-  if (next > TWIST_MAX || next < -TWIST_MAX) twistSign *= -1
-  postFXMat.uniforms.twist.value = next
-
   // Run multiple feedback passes per frame for finer echo spacing
   for (let i = 0; i < PASSES_PER_FRAME; i++) {
     // 1. Feedback pass into bufferA (scaled previous frame from bufferB)
