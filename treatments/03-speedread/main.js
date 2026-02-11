@@ -31,13 +31,21 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
   const allUrls = getImageUrls()
 
-  let urls    = shuffle(allUrls)
-  let index   = 0
+  // Preload first 50 in order so initial spawns are always ready
+  const WARM_COUNT = 50
+  await Assets.load(allUrls.slice(0, WARM_COUNT))
+
+  // Use first 50 in order, then shuffle the rest
+  let urls  = [...allUrls.slice(0, WARM_COUNT), ...shuffle(allUrls.slice(WARM_COUNT))]
+  let index = 0
   const RECENT_SIZE = 20
   const recent      = []
 
   function nextUrl() {
-    if (index >= urls.length) { index = 0; urls = shuffle(allUrls) }
+    if (index >= urls.length) {
+      index = 0
+      urls  = shuffle(allUrls)
+    }
     while (recent.includes(urls[index]) && index < urls.length) index++
     if (index >= urls.length) { index = 0; urls = shuffle(allUrls) }
     const url = urls[index++]
@@ -52,7 +60,7 @@ const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
     while (queue.length < PRELOAD_AHEAD) {
       const url = nextUrl()
       queue.push(url)
-      Assets.load(url)  // starts fetch, result cached by Pixi
+      Assets.load(url)
     }
   }
 
