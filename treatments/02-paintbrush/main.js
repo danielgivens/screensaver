@@ -17,11 +17,9 @@ window.addEventListener('resize', resize)
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 // Image display size — longest edge as fraction of shortest screen dimension
-const SIZE          = () => Math.min(window.innerWidth, window.innerHeight) * 0.28
-// How often to swap to the next image (ms)
-const SWAP_INTERVAL = 2800
+const SIZE  = () => Math.min(window.innerWidth, window.innerHeight) * 0.28
 // Speed in px/frame
-const SPEED         = 0.8
+const SPEED = 2.2
 
 // ─── Image pool ──────────────────────────────────────────────────────────────
 
@@ -57,7 +55,10 @@ let pendingImg = null   // preloaded next image
 
 // Re-compute size once the first image finishes loading
 if (!currentImg.complete) {
-  currentImg.addEventListener('load', updateSize, { once: true })
+  currentImg.addEventListener('load', () => {
+    updateSize()
+    opacity = 1
+  }, { once: true })
 }
 
 // Position & velocity
@@ -95,19 +96,18 @@ function preloadNext() {
 preloadNext()
 
 // Fade state — ramps from 0 to 1 after each swap
-let opacity     = 1
+let opacity     = 0
 const FADE_STEP  = 0.018  // per frame, ~700ms dissolve on swap
-const TRAIL_FADE = 0.002  // opacity of black rect painted each frame — controls trail length
+const TRAIL_FADE = 0.004  // opacity of black rect painted each frame — controls trail length
 
-// Swap to next image every SWAP_INTERVAL ms
-setInterval(() => {
+function swapImage() {
   if (pendingImg) {
     currentImg = pendingImg
     updateSize()
-    opacity = 0   // trigger fade in
+    opacity = 0
   }
   preloadNext()
-}, SWAP_INTERVAL)
+}
 
 // ─── Animation loop ──────────────────────────────────────────────────────────
 
@@ -128,17 +128,21 @@ function tick() {
   if (x - hw < 0) {
     x  = hw
     vx = Math.abs(vx)
+    swapImage()
   } else if (x + hw > w) {
     x  = w - hw
     vx = -Math.abs(vx)
+    swapImage()
   }
 
   if (y - hh < 0) {
     y  = hh
     vy = Math.abs(vy)
+    swapImage()
   } else if (y + hh > h) {
     y  = h - hh
     vy = -Math.abs(vy)
+    swapImage()
   }
 
   // Slowly darken the whole canvas each frame — older stamps fade to black
