@@ -21,6 +21,7 @@ export default defineConfig({
         manualChunks: {
           three: ['three'],
           gsap:  ['gsap'],
+          pixi:  ['pixi.js'],
         },
       },
     },

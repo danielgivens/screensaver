@@ -1,136 +1,128 @@
+import { Application, Sprite, Assets } from 'pixi.js'
+import { gsap } from 'gsap'
 import { getImageUrls, shuffle } from '../../src/images.js'
-
-// ─── Canvas setup ────────────────────────────────────────────────────────────
-
-const canvas = document.getElementById('canvas')
-const ctx    = canvas.getContext('2d')
-
-function resize() {
-  canvas.width  = window.innerWidth
-  canvas.height = window.innerHeight
-}
-
-resize()
-window.addEventListener('resize', resize)
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-// How long each image takes to scale from 0 to full size (ms)
-const SCALE_DURATION = 250
-// How long each image stays at full size before the next one fires (ms)
-const HOLD_DURATION  = 100
-// Max size — longest edge fits the screen (constrained by both dimensions)
+const SCALE_DURATION = 0.5    // seconds for scale-in animation
+const SPAWN_INTERVAL = 0.18   // seconds between each spawn (overlaps with scale-in)
 const SIZE = () => Math.min(window.innerWidth, window.innerHeight)
 
-// ─── Image pool ──────────────────────────────────────────────────────────────
+// ─── Bootstrap ───────────────────────────────────────────────────────────────
 
-const allUrls    = getImageUrls()
-const imageCache = {}
+;(async () => {
 
-function getImage(url) {
-  if (!imageCache[url]) {
-    const img = new Image()
-    img.src = url
-    imageCache[url] = img
+  const app = new Application()
+
+  await app.init({
+    resizeTo: window,
+    background: '#000000',
+    antialias: true,
+  })
+
+  app.canvas.style.position = 'fixed'
+  app.canvas.style.top      = '0'
+  app.canvas.style.left     = '0'
+  document.body.appendChild(app.canvas)
+
+  // ─── Image pool ────────────────────────────────────────────────────────────
+
+  const allUrls = getImageUrls()
+
+  // Load first 20 immediately, rest in background
+  await Assets.load(allUrls.slice(0, 20))
+  allUrls.slice(20).forEach(url => Assets.load(url))
+
+  let urls    = shuffle(allUrls)
+  let index   = 0
+  const RECENT_SIZE = 40
+  const recent      = []
+
+  function nextUrl() {
+    if (index >= urls.length) { index = 0; urls = shuffle(allUrls) }
+    while (recent.includes(urls[index]) && index < urls.length) index++
+    if (index >= urls.length) { index = 0; urls = shuffle(allUrls) }
+    const url = urls[index++]
+    recent.push(url)
+    if (recent.length > RECENT_SIZE) recent.shift()
+    return url
   }
-  return imageCache[url]
-}
 
-allUrls.forEach(getImage)
+  // ─── Spawn loop ──────────────────────────────────────────────────────────
 
-let urls    = shuffle(allUrls)
-let index   = 0
-const RECENT_SIZE = 40   // never repeat within the last N images
-const recent      = []
+  const sprites = []
 
-function nextImage() {
-  if (index >= urls.length) {
-    index = 0
-    urls  = shuffle(allUrls)
-  }
-  // Skip any image that appeared recently
-  while (recent.includes(urls[index]) && index < urls.length) {
-    index++
-  }
-  if (index >= urls.length) {
-    index = 0
-    urls  = shuffle(allUrls)
-  }
-  const url = urls[index++]
-  recent.push(url)
-  if (recent.length > RECENT_SIZE) recent.shift()
-  return getImage(url)
-}
+  async function spawnNext() {
+    const url     = nextUrl()
+    const texture = await Assets.load(url)
+    const sprite  = new Sprite(texture)
 
-// ─── Active particle ─────────────────────────────────────────────────────────
-
-// Only one image on screen at a time — scale up, hold, then swap
-let current = null   // { img, startTime, pw, ph }
-
-function spawnNext() {
-  const img = nextImage()
-
-  const launch = (image) => {
-    const aspect  = image.naturalWidth / image.naturalHeight
+    // Fit longest edge to SIZE()
     const longest = SIZE()
-    const pw = aspect >= 1 ? longest : longest * aspect
-    const ph = aspect >= 1 ? longest / aspect : longest
+    const aspect  = texture.width / texture.height
+    if (aspect >= 1) {
+      sprite.width  = longest
+      sprite.height = longest / aspect
+    } else {
+      sprite.width  = longest * aspect
+      sprite.height = longest
+    }
 
-    // Small random rotation (-12 to +12 deg) and offset from center
-    const angle  = (Math.random() - 0.5) * 24 * (Math.PI / 180)
-    const offX   = (Math.random() - 0.5) * canvas.width  * 0.12
-    const offY   = (Math.random() - 0.5) * canvas.height * 0.12
+    sprite.anchor.set(0.5)
+    sprite.x        = app.screen.width  / 2
+    sprite.y        = app.screen.height / 2
+    sprite.rotation = 0
+    sprite.alpha    = 1
 
-    current = { img: image, startTime: performance.now(), pw, ph, angle, offX, offY }
+    // Start from 0, animate to full size
+    const endScale = sprite.scale.x
+    sprite.scale.set(0)
 
-    // Schedule next image after scale + hold
-    setTimeout(spawnNext, SCALE_DURATION + HOLD_DURATION)
+    // Nudge all existing sprites back, remove ones that have shrunk to nothing
+    for (let i = sprites.length - 1; i >= 0; i--) {
+      const s = sprites[i]
+      const next = s.scale.x * 0.96
+      if (next < 0.02) {
+        gsap.killTweensOf(s)
+        app.stage.removeChild(s)
+        s.destroy()
+        sprites.splice(i, 1)
+      } else {
+        gsap.to(s.scale, { x: next, y: next, duration: SPAWN_INTERVAL, ease: 'sine.inOut', overwrite: true })
+      }
+    }
+
+    app.stage.addChild(sprite)
+    sprites.push(sprite)
+
+    gsap.to(sprite.scale, { x: endScale, y: endScale, duration: SCALE_DURATION, ease: 'expo.out' })
+
+    gsap.delayedCall(SPAWN_INTERVAL, spawnNext)
   }
 
-  if (img.complete && img.naturalWidth > 0) {
-    launch(img)
-  } else {
-    img.addEventListener('load', () => launch(img), { once: true })
-  }
-}
+  // Slowly zoom the entire stage out over time — one cheap tween, gives depth illusion
+  app.stage.pivot.set(app.screen.width / 2, app.screen.height / 2)
+  app.stage.position.set(app.screen.width / 2, app.screen.height / 2)
+  gsap.to(app.stage.scale, {
+    x: 0.6, y: 0.6,
+    duration: 120,
+    ease: 'none',
+  })
 
-spawnNext()
+  spawnNext()
 
-// ─── Easing ──────────────────────────────────────────────────────────────────
+  // ─── Click to clear ────────────────────────────────────────────────────────
 
-// Ease out — fast start, decelerates to full size
-function easeOutExpo(t) {
-  return t === 1 ? 1 : 1 - Math.pow(2, -10 * t)
-}
+  window.addEventListener('click', () => {
+    sprites.forEach(s => {
+      gsap.killTweensOf(s)
+      app.stage.removeChild(s)
+      s.destroy()
+    })
+    sprites.length = 0
+    gsap.killTweensOf(app.stage.scale)
+    app.stage.scale.set(1)
+    gsap.to(app.stage.scale, { x: 0.6, y: 0.6, duration: 120, ease: 'none' })
+  })
 
-// ─── Animation loop ──────────────────────────────────────────────────────────
-
-function tick() {
-  requestAnimationFrame(tick)
-
-  if (!current) return
-
-  const cx = canvas.width  / 2
-  const cy = canvas.height / 2
-
-  const elapsed = performance.now() - current.startTime
-  const t       = Math.min(elapsed / SCALE_DURATION, 1)
-  const scale   = 0.88 + easeOutExpo(t) * 0.12
-
-  const pw = current.pw * scale
-  const ph = current.ph * scale
-
-  ctx.save()
-  ctx.translate(cx + current.offX, cy + current.offY)
-  ctx.rotate(current.angle)
-  ctx.drawImage(current.img, -pw / 2, -ph / 2, pw, ph)
-  ctx.restore()
-}
-
-tick()
-
-// ─── Click to clear ──────────────────────────────────────────────────────────
-
-window.addEventListener('click', () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-})
+})()
