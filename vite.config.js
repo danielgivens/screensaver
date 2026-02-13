@@ -12,12 +12,12 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       input: {
-        main: 'index.html',
-        treatment01: 'treatments/01-collage/index.html',
-        treatment02: 'treatments/02-paintbrush/index.html',
-        treatment03: 'treatments/03-speedread/index.html',
-        treatment04: 'treatments/04-sphere/index.html',
-        treatment05: 'treatments/05-feedback/index.html',
+        main:       'index.html',
+        scrapbook:  'scrapbook/index.html',
+        paintbrush: 'paintbrush/index.html',
+        speedread:  'speedread/index.html',
+        sphere:     'sphere/index.html',
+        feedback:   'feedback/index.html',
       },
       output: {
         manualChunks: {
