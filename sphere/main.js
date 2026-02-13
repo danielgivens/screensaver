@@ -16,7 +16,7 @@ const ZOOM_MAX       = 9.5      // furthest from centre (just inside sphere)
 
 const canvas   = document.getElementById('canvas')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false })
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setClearColor(0x000000)
 
