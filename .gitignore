@@ -1,4 +1,20 @@
 node_modules
 .DS_Store
 *.local
+
+# Source image folders
 jpg/
+jpg-fix/
+png/
+png-new/
+png-fix/
+png-fix-*/
+REMBG.md
+
+# rembg processing scripts
+rembg_*.py
+
+# CLIP review files
+clip_*.py
+clip_*.txt
+clip_*.html
