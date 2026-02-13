@@ -1,1 +1,1 @@
-Experiments using hundreds subjects from disposable camera photos.
+Experiments using subjects from hundreds of my disposable camera photos.
