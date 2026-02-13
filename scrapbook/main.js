@@ -62,6 +62,7 @@ function drawNext() {
   const img = getImage(urls[index++])
 
   const draw = (image) => {
+    if (!image.naturalWidth || !image.naturalHeight) return
     const aspect  = image.naturalWidth / image.naturalHeight
     const longest = rand(minSize(), targetSize())
     const pw = aspect >= 1 ? longest : longest * aspect

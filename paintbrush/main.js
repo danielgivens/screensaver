@@ -17,7 +17,7 @@ window.addEventListener('resize', resize)
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 // Image display size — longest edge as fraction of shortest screen dimension
-const SIZE  = () => Math.min(window.innerWidth, window.innerHeight) * 0.28
+const SIZE  = () => Math.min(window.innerWidth, window.innerHeight) * 0.38
 // Speed in px/frame
 const SPEED = 2.2
 
