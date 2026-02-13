@@ -5,7 +5,9 @@ import { getImageUrls, shuffle } from '../src/images.js'
 
 const SWAP_INTERVAL    = 1000   // ms between image swaps
 const SCALE            = 0.994  // feedback zoom per pass — closer to 1 = slower zoom
-const PASSES_PER_FRAME = 14     // feedback+stamp passes per animation frame — more = finer echoes
+const PASSES_PER_FRAME = 6      // feedback+stamp passes per animation frame — more = finer echoes
+const OUTLINE_SIZE     = 5      // outline thickness in pixels
+const OUTLINE_COLOR    = new THREE.Color(1, 1, 1)  // outline colour
 
 // ─── Renderer ────────────────────────────────────────────────────────────────
 
@@ -13,6 +15,7 @@ const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(window.devicePixelRatio || 1)
 renderer.autoClearColor = false
+renderer.setClearColor(0xffffff)
 document.body.appendChild(renderer.domElement)
 
 window.addEventListener('resize', () => {
@@ -48,6 +51,52 @@ orthoCamera.lookAt(new THREE.Vector3(0, 0, 0))
 // ─── Image scene ─────────────────────────────────────────────────────────────
 
 const imageScene = new THREE.Scene()
+
+// Outline mesh — rendered behind the image, slightly larger, solid colour where alpha > 0
+const outlineMat = new THREE.ShaderMaterial({
+  transparent: true,
+  uniforms: {
+    map:         { value: null },
+    outlineColor: { value: OUTLINE_COLOR },
+    texelSize:   { value: new THREE.Vector2(1, 1) },
+    thickness:   { value: OUTLINE_SIZE },
+  },
+  vertexShader: `
+    varying vec2 v_uv;
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      v_uv = uv;
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D map;
+    uniform vec3 outlineColor;
+    uniform vec2 texelSize;
+    uniform float thickness;
+    varying vec2 v_uv;
+    void main() {
+      // Sample alpha at current pixel and neighbours to detect edge
+      float a = texture2D(map, v_uv).a;
+      float t = thickness;
+      float n  = texture2D(map, v_uv + vec2(0.0,  t) * texelSize).a;
+      float s  = texture2D(map, v_uv + vec2(0.0, -t) * texelSize).a;
+      float e  = texture2D(map, v_uv + vec2( t, 0.0) * texelSize).a;
+      float w  = texture2D(map, v_uv + vec2(-t, 0.0) * texelSize).a;
+      float ne = texture2D(map, v_uv + vec2( t,  t)  * texelSize).a;
+      float nw = texture2D(map, v_uv + vec2(-t,  t)  * texelSize).a;
+      float se = texture2D(map, v_uv + vec2( t, -t)  * texelSize).a;
+      float sw = texture2D(map, v_uv + vec2(-t, -t)  * texelSize).a;
+      float maxNeighbour = max(max(max(n, s), max(e, w)), max(max(ne, nw), max(se, sw)));
+      // Outline = where we have no alpha but a neighbour does
+      float outline = (1.0 - step(0.05, a)) * step(0.05, maxNeighbour);
+      gl_FragColor = vec4(outlineColor, outline);
+    }
+  `,
+})
+const outlineMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), outlineMat)
+outlineMesh.position.z = -0.01
+imageScene.add(outlineMesh)
+
 const imageMat   = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.05 })
 const imageMesh  = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), imageMat)
 imageScene.add(imageMesh)
@@ -78,13 +127,14 @@ const postFXMat = new THREE.ShaderMaterial({
 
     void main () {
       vec2 uv = (v_uv - vec2(0.5)) * scale + vec2(0.5);
-      // Return black for any sample outside the buffer bounds
+      // Return white for any sample outside the buffer bounds
       if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         return;
       }
       vec4 inputColor = texture2D(sampler, uv);
-      gl_FragColor = vec4(inputColor.rgb * 0.999, 1.0);
+      // Fade toward white instead of black
+      gl_FragColor = vec4(inputColor.rgb + (1.0 - inputColor.rgb) * 0.001, 1.0);
     }
   `,
 })
@@ -139,6 +189,11 @@ function swapToTexture(tex) {
   imageMesh.geometry = new THREE.PlaneGeometry(pw, ph)
   imageMat.needsUpdate = true
 
+  // Update outline mesh to match
+  outlineMesh.geometry.dispose()
+  outlineMesh.geometry = new THREE.PlaneGeometry(pw, ph)
+  outlineMat.uniforms.map.value = tex
+  outlineMat.uniforms.texelSize.value.set(1 / tex.image.width, 1 / tex.image.height)
 }
 
 function swapImage() {

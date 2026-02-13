@@ -15,7 +15,7 @@ export default defineConfig({
         main:       'index.html',
         scrapbook:  'scrapbook/index.html',
         paintbrush: 'paintbrush/index.html',
-        speedread:  'speedread/index.html',
+        speedread:  'speed-read/index.html',
         sphere:     'sphere/index.html',
         feedback:   'feedback/index.html',
       },
