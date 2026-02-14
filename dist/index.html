@@ -4,49 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Screensaver Lab</title>
-  <link rel="stylesheet" crossorigin href="/screensaver/assets/style-K9w7RHdA.css">
+  <link rel="stylesheet" crossorigin href="/screensaver/assets/style-D84520P_.css">
 </head>
 <body class="bg-black min-h-screen flex flex-col items-center justify-center p-8" style="overflow:auto">
 
   <div class="max-w-2xl w-full">
-    <ul class="space-y-3">
+    <ul class="landing-list">
       <li>
         <a href="/screensaver/scrapbook/"
            class="group flex items-center gap-4 border border-zinc-800 hover:border-zinc-400 transition-colors duration-200 px-6 py-5 rounded">
           <span class="text-zinc-600 font-mono text-xs w-6">01</span>
-          <span class="text-white font-mono text-sm group-hover:text-zinc-200">Scrapbook</span>
+          <span class="text-white font-mono text-sm group-hover:text-zinc-200" data-glitch="Scrapbook">&nbsp;</span>
         </a>
       </li>
       <li>
         <a href="/screensaver/paintbrush/"
            class="group flex items-center gap-4 border border-zinc-800 hover:border-zinc-400 transition-colors duration-200 px-6 py-5 rounded">
           <span class="text-zinc-600 font-mono text-xs w-6">02</span>
-          <span class="text-white font-mono text-sm group-hover:text-zinc-200">Paintbrush</span>
+          <span class="text-white font-mono text-sm group-hover:text-zinc-200" data-glitch="Paintbrush">&nbsp;</span>
         </a>
       </li>
       <li>
         <a href="/screensaver/speed-read/"
            class="group flex items-center gap-4 border border-zinc-800 hover:border-zinc-400 transition-colors duration-200 px-6 py-5 rounded">
           <span class="text-zinc-600 font-mono text-xs w-6">03</span>
-          <span class="text-white font-mono text-sm group-hover:text-zinc-200">Speed Read</span>
+          <span class="text-white font-mono text-sm group-hover:text-zinc-200" data-glitch="Speed Read">&nbsp;</span>
         </a>
       </li>
       <li>
         <a href="/screensaver/sphere/"
            class="group flex items-center gap-4 border border-zinc-800 hover:border-zinc-400 transition-colors duration-200 px-6 py-5 rounded">
           <span class="text-zinc-600 font-mono text-xs w-6">04</span>
-          <span class="text-white font-mono text-sm group-hover:text-zinc-200">Sphere</span>
+          <span class="text-white font-mono text-sm group-hover:text-zinc-200" data-glitch="Sphere">&nbsp;</span>
         </a>
       </li>
       <li>
         <a href="/screensaver/feedback/"
            class="group flex items-center gap-4 border border-zinc-800 hover:border-zinc-400 transition-colors duration-200 px-6 py-5 rounded">
           <span class="text-zinc-600 font-mono text-xs w-6">05</span>
-          <span class="text-white font-mono text-sm group-hover:text-zinc-200">Feedback</span>
+          <span class="text-white font-mono text-sm group-hover:text-zinc-200" data-glitch="Feedback">&nbsp;</span>
         </a>
       </li>
     </ul>
   </div>
+
+  <script>
+    // ─── Audio ───────────────────────────────────────────────────────────────────
+    let ctx = null
+    function getCtx() {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)()
+      return ctx
+    }
+
+    function beep({ freq = 880, type = 'sine', gain = 0.08, attack = 0.002, decay = 0.12 } = {}) {
+      const ac = getCtx()
+      if (ac.state !== 'running') return  // not yet unlocked, skip
+      const osc = ac.createOscillator()
+      const env = ac.createGain()
+      osc.connect(env)
+      env.connect(ac.destination)
+      osc.type = type
+      osc.frequency.value = freq
+      const t = ac.currentTime
+      env.gain.setValueAtTime(0, t)
+      env.gain.linearRampToValueAtTime(gain, t + attack)
+      env.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay)
+      osc.start(t)
+      osc.stop(t + attack + decay + 0.01)
+    }
+
+    // Unlock AudioContext on first gesture
+    document.addEventListener('click', () => getCtx().resume(), { once: true })
+    document.addEventListener('mouseenter', () => getCtx().resume(), { once: true })
+
+    function playHover() { beep({ freq: 1200, gain: 0.05, attack: 0.001, decay: 0.06 }) }
+    function playClick() { beep({ freq: 300, type: 'triangle', gain: 0.12, attack: 0.001, decay: 0.12 }) }
+    function playMiss()  { beep({ freq: 220, type: 'sine', gain: 0.04, attack: 0.001, decay: 0.08 }) }
+
+    // ─── Glitch ───────────────────────────────────────────────────────────────────
+    const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&'
+    const FRAME_MS = 40
+    const SCRAMBLE_FRAMES = 10
+
+    function rand(arr) {
+      return arr[Math.floor(Math.random() * arr.length)]
+    }
+
+    function glitch(el, target, delay) {
+      setTimeout(() => {
+        let frame = 0
+        const interval = setInterval(() => {
+          if (frame >= SCRAMBLE_FRAMES) {
+            el.textContent = target
+            clearInterval(interval)
+            return
+          }
+          el.textContent = target.split('').map((ch, i) => {
+            if (ch === ' ') return ' '
+            if (i < Math.floor((frame / SCRAMBLE_FRAMES) * target.length)) return ch
+            return rand(CHARS)
+          }).join('')
+          frame++
+        }, FRAME_MS)
+      }, delay)
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('a')) playMiss()
+    })
+
+    document.querySelectorAll('[data-glitch]').forEach((el, i) => {
+      const target = el.dataset.glitch
+      // animate in on load, staggered
+      glitch(el, target, i * 80)
+      // re-trigger on hover of the parent anchor
+      const anchor = el.closest('a')
+      anchor.addEventListener('mouseenter', () => { playHover(); glitch(el, target, 0) })
+      anchor.addEventListener('click', () => playClick())
+    })
+  </script>
 
 </body>
 </html>
