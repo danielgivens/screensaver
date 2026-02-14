@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Screensaver Lab</title>
-  <link rel="stylesheet" crossorigin href="/screensaver/assets/style-D84520P_.css">
+  <link rel="stylesheet" crossorigin href="/screensaver/assets/style-DacdN04H.css">
 </head>
 <body class="bg-black min-h-screen flex flex-col items-center justify-center p-8" style="overflow:auto">
 
@@ -78,7 +78,6 @@
     document.addEventListener('mouseenter', () => getCtx().resume(), { once: true })
 
     function playHover() { beep({ freq: 1200, gain: 0.05, attack: 0.001, decay: 0.06 }) }
-    function playClick() { beep({ freq: 300, type: 'triangle', gain: 0.12, attack: 0.001, decay: 0.12 }) }
     function playMiss()  { beep({ freq: 220, type: 'sine', gain: 0.04, attack: 0.001, decay: 0.08 }) }
 
     // ─── Glitch ───────────────────────────────────────────────────────────────────
@@ -120,7 +119,6 @@
       // re-trigger on hover of the parent anchor
       const anchor = el.closest('a')
       anchor.addEventListener('mouseenter', () => { playHover(); glitch(el, target, 0) })
-      anchor.addEventListener('click', () => playClick())
     })
   </script>
 
