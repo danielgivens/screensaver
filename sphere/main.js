@@ -157,23 +157,24 @@ window.addEventListener('wheel', e => {
   camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + e.deltaY * ZOOM_SPEED))
 }, { passive: true })
 
-let lastPinchDist = null
+// Two-finger vertical swipe to zoom (no pinch geometry — avoids browser zoom conflict)
+let lastTwoFingerY = null
 window.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) lastPinchDist = null
+  if (e.touches.length === 2) {
+    lastTwoFingerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+  }
 }, { passive: true })
 window.addEventListener('touchmove', e => {
-  if (e.touches.length !== 2) return
-  const dx   = e.touches[0].clientX - e.touches[1].clientX
-  const dy   = e.touches[0].clientY - e.touches[1].clientY
-  const dist = Math.sqrt(dx * dx + dy * dy)
-  if (lastPinchDist !== null) {
-    const delta = lastPinchDist - dist  // pinch in = positive = zoom in (move toward surface)
-    camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + delta * ZOOM_SPEED * 2))
+  if (e.touches.length !== 2) { lastTwoFingerY = null; return }
+  const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+  if (lastTwoFingerY !== null) {
+    const delta = midY - lastTwoFingerY  // swipe down = positive = move toward surface
+    camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + delta * ZOOM_SPEED * 5))
   }
-  lastPinchDist = dist
+  lastTwoFingerY = midY
 }, { passive: true })
 window.addEventListener('touchend', e => {
-  if (e.touches.length < 2) lastPinchDist = null
+  if (e.touches.length < 2) lastTwoFingerY = null
 })
 
 // ─── Animation loop ───────────────────────────────────────────────────────────
