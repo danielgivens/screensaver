@@ -143,7 +143,7 @@ function onPointerMove(e) {
 function onPointerUp() {
   dragging = false
   document.body.classList.remove('dragging')
-  setZoomVisible(true)
+  showZoomThenHideAfterIdle()
 }
 
 window.addEventListener('mousedown',  onPointerDown)
@@ -162,18 +162,34 @@ window.addEventListener('wheel', e => {
 // ─── Zoom buttons (mobile) ────────────────────────────────────────────────────
 
 const zoomControls = document.getElementById('zoom-controls')
-const ZOOM_STEP = 1.5  // radius change per button tap
+const ZOOM_STEP    = 1.5   // radius change per button tap
+const IDLE_DELAY   = 2000  // ms before buttons auto-hide
+
+let idleTimer = null
 
 function setZoomVisible(visible) {
   if (zoomControls) zoomControls.classList.toggle('hidden', !visible)
 }
 
+function showZoomThenHideAfterIdle() {
+  setZoomVisible(true)
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(() => setZoomVisible(false), IDLE_DELAY)
+}
+
 document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
   camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + ZOOM_STEP))
+  showZoomThenHideAfterIdle()
 })
 document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
   camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius - ZOOM_STEP))
+  showZoomThenHideAfterIdle()
 })
+
+// Show on touchend only if it wasn't a drag (i.e. pointer didn't move)
+window.addEventListener('touchend', () => {
+  if (!dragging) showZoomThenHideAfterIdle()
+}, { passive: true })
 
 // ─── Animation loop ───────────────────────────────────────────────────────────
 
