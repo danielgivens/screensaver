@@ -127,6 +127,7 @@ function onPointerDown(e) {
 
 function onPointerMove(e) {
   if (!dragging) return
+  setZoomVisible(false)
   const x = e.clientX ?? e.touches[0].clientX
   const y = e.clientY ?? e.touches[0].clientY
   const dx = x - lastX
@@ -142,6 +143,7 @@ function onPointerMove(e) {
 function onPointerUp() {
   dragging = false
   document.body.classList.remove('dragging')
+  setZoomVisible(true)
 }
 
 window.addEventListener('mousedown',  onPointerDown)
@@ -157,24 +159,20 @@ window.addEventListener('wheel', e => {
   camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + e.deltaY * ZOOM_SPEED))
 }, { passive: true })
 
-// Two-finger vertical swipe to zoom (no pinch geometry — avoids browser zoom conflict)
-let lastTwoFingerY = null
-window.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) {
-    lastTwoFingerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
-  }
-}, { passive: true })
-window.addEventListener('touchmove', e => {
-  if (e.touches.length !== 2) { lastTwoFingerY = null; return }
-  const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2
-  if (lastTwoFingerY !== null) {
-    const delta = midY - lastTwoFingerY  // swipe down = positive = move toward surface
-    camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + delta * ZOOM_SPEED * 5))
-  }
-  lastTwoFingerY = midY
-}, { passive: true })
-window.addEventListener('touchend', e => {
-  if (e.touches.length < 2) lastTwoFingerY = null
+// ─── Zoom buttons (mobile) ────────────────────────────────────────────────────
+
+const zoomControls = document.getElementById('zoom-controls')
+const ZOOM_STEP = 1.5  // radius change per button tap
+
+function setZoomVisible(visible) {
+  if (zoomControls) zoomControls.classList.toggle('hidden', !visible)
+}
+
+document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
+  camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius + ZOOM_STEP))
+})
+document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
+  camRadius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, camRadius - ZOOM_STEP))
 })
 
 // ─── Animation loop ───────────────────────────────────────────────────────────

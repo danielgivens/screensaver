@@ -10,6 +10,38 @@
     body { cursor: grab; }
     body.dragging { cursor: grabbing; }
     #canvas { display: block; }
+
+    @media (pointer: coarse) {
+      #zoom-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        position: fixed;
+        bottom: 32px;
+        right: 24px;
+        z-index: 20;
+        transition: opacity 0.2s;
+      }
+      #zoom-controls.hidden { opacity: 0; pointer-events: none; }
+      .zoom-btn {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: white;
+        border: 1.5px solid rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+      .zoom-btn svg { width: 20px; height: 20px; }
+    }
+    @media (pointer: fine) {
+      #zoom-controls { display: none; }
+    }
   </style>
 </head>
 <body class="bg-black w-full h-full overflow-hidden">
@@ -17,6 +49,18 @@
     <span style="color:#444;font-family:monospace;font-size:13px;letter-spacing:0.1em;">loading</span>
   </div>
   <canvas id="canvas"></canvas>
+  <div id="zoom-controls">
+    <button class="zoom-btn" id="btn-zoom-in" aria-label="Zoom in">
+      <svg viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+    <button class="zoom-btn" id="btn-zoom-out" aria-label="Zoom out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+  </div>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
